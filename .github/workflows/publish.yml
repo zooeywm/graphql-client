@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Check github.ref starts with 'refs/tags/'
@@ -25,9 +25,9 @@ jobs:
         echo github.ref: ${{ github.ref }}
         exit 1
     - name: Setup .NET SDK
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: "7.0.x"
+        dotnet-version: "8.0.x"
         source-url: https://api.nuget.org/v3/index.json
       env:
         NUGET_AUTH_TOKEN: ${{secrets.NUGET_API_KEY}}
@@ -51,14 +51,14 @@ jobs:
     - name: Create NuGet packages
       run: dotnet pack -c Release --no-restore --no-build -o nupkg
     - name: Upload nuget packages as artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: nupkg
         path: nupkg
     - name: Publish Nuget packages to Nuget registry
       run: dotnet nuget push "nupkg/*" -k ${{secrets.NUGET_API_KEY}}
     - name: Upload Nuget packages as release artifacts
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         github-token: ${{secrets.GITHUB_TOKEN}}
         script: |

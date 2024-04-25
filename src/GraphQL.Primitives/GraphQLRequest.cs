@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GraphQL;
 
 /// <summary>
@@ -13,6 +15,7 @@ public class GraphQLRequest : Dictionary<string, object>, IEquatable<GraphQLRequ
     /// <summary>
     /// The Query
     /// </summary>
+    [StringSyntax("GraphQL")]
     public string Query
     {
         get => TryGetValue(QUERY_KEY, out object value) ? (string)value : null;
@@ -48,13 +51,21 @@ public class GraphQLRequest : Dictionary<string, object>, IEquatable<GraphQLRequ
 
     public GraphQLRequest() { }
 
-    public GraphQLRequest(string query, object? variables = null, string? operationName = null, Dictionary<string, object?>? extensions = null)
+    public GraphQLRequest([StringSyntax("GraphQL")] string query, object? variables = null, string? operationName = null, Dictionary<string, object?>? extensions = null)
     {
         Query = query;
         Variables = variables;
         OperationName = operationName;
         Extensions = extensions;
     }
+
+#if NET6_0_OR_GREATER
+    public GraphQLRequest(GraphQLQuery query, object? variables = null, string? operationName = null,
+        Dictionary<string, object?>? extensions = null)
+        : this(query.Text, variables, operationName, extensions)
+    {
+    }
+#endif
 
     public GraphQLRequest(GraphQLRequest other) : base(other) { }
 

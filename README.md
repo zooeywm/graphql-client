@@ -14,31 +14,38 @@ Provides the following packages:
 | GraphQL.Client.Serializer.SystemTextJson | [![Nuget](https://img.shields.io/nuget/dt/GraphQL.Client.Serializer.SystemTextJson)](https://www.nuget.org/packages/GraphQL.Client.Serializer.SystemTextJson) | [![Nuget](https://img.shields.io/nuget/vpre/GraphQL.Client.Serializer.SystemTextJson)](https://www.nuget.org/packages/GraphQL.Client.Serializer.SystemTextJson) | 
 | GraphQL.Primitives | [![Nuget](https://img.shields.io/nuget/dt/GraphQL.Primitives)](https://www.nuget.org/packages/GraphQL.Primitives/) | [![Nuget](https://img.shields.io/nuget/vpre/GraphQL.Primitives)](https://www.nuget.org/packages/GraphQL.Primitives) | 
 
-## Specification:
+## Specification
 The Library will try to follow the following standards and documents:
 
 * [GraphQL Specification](https://spec.graphql.org/June2018/)
 * [GraphQL HomePage](https://graphql.org/learn)
 
-## Usage:
+## Usage
 
 ### Create a GraphQLHttpClient
 
 ```csharp
-// To use NewtonsoftJsonSerializer, add a reference to NuGet package GraphQL.Client.Serializer.Newtonsoft
-var graphQLClient = new GraphQLHttpClient("https://api.example.com/graphql", new NewtonsoftJsonSerializer());
+// To use NewtonsoftJsonSerializer, add a reference to 
+// NuGet package GraphQL.Client.Serializer.Newtonsoft
+var graphQLClient = new GraphQLHttpClient(
+    "https://api.example.com/graphql", 
+    new NewtonsoftJsonSerializer());
 ```
+
+> [!NOTE]
+> *GraphQLHttpClient* is meant to be used as a single long-lived instance per endpoint (i.e. register as singleton in a DI system), which should be reused for multiple requests.
 
 ### Create a GraphQLRequest:
 #### Simple Request:
 ```csharp
 var heroRequest = new GraphQLRequest {
-    Query = @"
+    Query = """
     {
         hero {
             name
         }
-    }"
+    }
+    """
 };
 ```
 
@@ -46,7 +53,7 @@ var heroRequest = new GraphQLRequest {
 
 ```csharp
 var personAndFilmsRequest = new GraphQLRequest {
-    Query =@"
+    Query ="""
     query PersonAndFilms($id: ID) {
         person(id: $id) {
             name
@@ -56,7 +63,8 @@ var personAndFilmsRequest = new GraphQLRequest {
                 }
             }
         }
-    }",
+    }
+    """,
     OperationName = "PersonAndFilms",
     Variables = new {
         id = "cGVvcGxlOjE="
@@ -64,9 +72,12 @@ var personAndFilmsRequest = new GraphQLRequest {
 };
 ```
 
-Be careful when using `byte[]` in your variables object, as most JSON serializers will treat that as binary data! If you really need to send a *list of bytes* with a `byte[]` as a source, then convert it to a `List<byte>` first, which will tell the serializer to output a list of numbers instead of a base64-encoded string.
+> [!WARNING]
+> Be careful when using `byte[]` in your variables object, as most JSON serializers will treat that as binary data.
+> 
+> If you really need to send a *list of bytes* with a `byte[]` as a  source, then convert it to a `List<byte>` first, which will tell the serializer to output a list of numbers instead of a base64-encoded string.
 
-### Execute Query/Mutation:
+### Execute Query/Mutation
 
 ```csharp
 public class ResponseType 
@@ -96,9 +107,16 @@ var personName = graphQLResponse.Data.Person.Name;
 Using the extension method for anonymously typed responses (namespace `GraphQL.Client.Abstractions`) you could achieve the same result with the following code:
 
 ```csharp
-var graphQLResponse = await graphQLClient.SendQueryAsync(personAndFilmsRequest, () => new { person = new PersonType()} );
+var graphQLResponse = await graphQLClient.SendQueryAsync(
+    personAndFilmsRequest, 
+    () => new { person = new PersonType()});
 var personName = graphQLResponse.Data.person.Name;
 ```
+
+> [!IMPORTANT]
+> Note that the field in the GraphQL response which gets deserialized into the response object is the `data` field.
+>
+> A common mistake is to try to directly use the `PersonType` class as response type (because thats the *thing* you actually want to query), but the returned response object contains a property `person` containing a `PersonType` object (like the `ResponseType` modelled above).
 
 ### Use Subscriptions
 
@@ -141,7 +159,39 @@ var subscription = subscriptionStream.Subscribe(response =>
 subscription.Dispose();
 ```
 
-## Useful Links:
+## Syntax Highlighting for GraphQL strings in IDEs
+
+.NET 7.0 introduced the [StringSyntaxAttribute](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.codeanalysis.stringsyntaxattribute?view=net-8.0) to have a unified way of telling what data is expected in a given `string` or `ReadOnlySpan<char>`. IDEs like Visual Studio and Rider can then use this to provide syntax highlighting and checking.
+
+From v6.0.4 on all GraphQL string parameters in this library are decorated with the `[StringSyntax("GraphQL")]` attribute.
+
+Currently, there is no native support for GraphQL formatting and syntax highlighting in Visual Studio, but the [GraphQLTools Extension](https://marketplace.visualstudio.com/items?itemName=codearchitects-research.GraphQLTools) provides that for you.
+
+For Rider, JetBrains provides a [Plugin](https://plugins.jetbrains.com/plugin/8097-graphql), too.
+
+To leverage syntax highlighting in variable declarations, the `GraphQLQuery` value record type is provided:
+
+```csharp
+GraphQLQuery query = new("""
+                         query PersonAndFilms($id: ID) {
+                             person(id: $id) {
+                                 name
+                                 filmConnection {
+                                     films {
+                                         title
+                                     }
+                                 }
+                             }
+                         }
+                         """);
+                         
+var graphQLResponse = await graphQLClient.SendQueryAsync<ResponseType>(
+    query, 
+    "PersonAndFilms",
+    new { id = "cGVvcGxlOjE=" });
+```
+
+## Useful Links
 
 * [StarWars Example Server (GitHub)](https://github.com/graphql/swapi-graphql)
 * [StarWars Example Server (EndPoint)](https://swapi.apis.guru/)
